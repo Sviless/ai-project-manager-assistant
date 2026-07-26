@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+
+# App data / generated artifacts
+data/*.db
+outputs/*.md
+outputs/*.csv
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

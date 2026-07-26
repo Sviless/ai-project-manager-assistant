@@ -1,0 +1,8 @@
+streamlit>=1.32.0
+pandas>=2.0.0
+
+# --- Optional: only needed for LLM mode (set LLM_API_KEY to enable) ---
+# Install the one that matches your LLM_PROVIDER. The app runs in mock mode
+# without any of these.
+# openai>=1.0.0       # LLM_PROVIDER=openai or azure
+# anthropic>=0.30.0   # LLM_PROVIDER=anthropic
