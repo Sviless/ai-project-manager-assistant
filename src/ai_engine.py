@@ -498,35 +498,60 @@ class LLMEngine:
 # ---------------------------------------------------------------------------
 # Factory + status
 # ---------------------------------------------------------------------------
-def get_engine() -> AIEngine:
+def get_engine(mode: str = "auto") -> AIEngine:
     """
-    Return the active generation engine based on the environment.
+    Return the active generation engine.
 
-    - If `LLM_API_KEY` is set, returns an `LLMEngine` wired to the configured
-      provider (see `src/providers.py`).
-    - Otherwise returns the offline `MockAIEngine`.
+    ``mode`` controls which engine is used:
+    - ``"mock"`` : always returns the offline ``MockAIEngine``.
+    - ``"llm"``  : returns an ``LLMEngine`` if an API key/provider is
+      configured; otherwise raises ``RuntimeError`` explaining what to do.
+    - ``"auto"`` (default): uses the LLM when a provider is configured,
+      falling back to the offline ``MockAIEngine`` when no key is set.
 
     LLM mode is never required; with no key, the app runs fully in mock mode.
     """
+    if mode == "mock":
+        return MockAIEngine()
+
     provider = get_provider()
     if provider is not None:
         return LLMEngine(provider)
+
+    if mode == "llm":
+        raise RuntimeError(
+            "LLM Mode is selected but no API key is configured. Add LLM_API_KEY "
+            "to your .env file (see .env.example), or switch to Local Mock Mode."
+        )
     return MockAIEngine()
 
 
-def engine_status() -> dict[str, str | None]:
+def engine_status(mode: str = "auto") -> dict[str, str | None]:
     """
-    Describe the active engine for display in the UI.
+    Describe the engine that ``mode`` would produce, for display in the UI.
 
-    Returns a dict: {"mode": "mock"|"llm", "provider": str|None, "model": str|None}.
-    Never raises — misconfiguration is reported as an "error" mode instead.
+    Returns a dict: {"mode": "mock"|"llm"|"error", "provider": str|None,
+    "model": str|None}. Never raises — misconfiguration or a missing key while
+    LLM Mode is selected is reported as an "error" mode instead.
     """
+    if mode == "mock":
+        return {"mode": "mock", "provider": None, "model": None}
+
     try:
         provider = get_provider()
     except ValueError as exc:
         return {"mode": "error", "provider": None, "model": None, "error": str(exc)}
+
     if provider is None:
+        if mode == "llm":
+            return {
+                "mode": "error",
+                "provider": None,
+                "model": None,
+                "error": "No API key configured (set LLM_API_KEY).",
+            }
         return {"mode": "mock", "provider": None, "model": None}
+
     return {
         "mode": "llm",
         "provider": provider.name,

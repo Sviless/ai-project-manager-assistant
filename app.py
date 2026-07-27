@@ -47,6 +47,10 @@ SINGLE_LINE_FIELDS = {"project_name", "target_date"}
 # Human-friendly labels for the input fields (used in the History view).
 INPUT_LABELS = {key: label for key, label, _, _ in INPUT_FIELDS}
 
+# AI Mode selector options: display label -> internal engine mode.
+MODE_LABELS = {"🧪 Mock Mode": "mock", "🤖 LLM Mode": "llm"}
+LABEL_BY_MODE = {mode: label for label, mode in MODE_LABELS.items()}
+
 # ---------------------------------------------------------------------------
 # Page configuration
 # ---------------------------------------------------------------------------
@@ -72,6 +76,11 @@ def _init_state() -> None:
         st.session_state.inputs = _blank_inputs()
     if "outputs" not in st.session_state:
         st.session_state.outputs = {}  # dict[str, str] of generated Markdown
+    if "ai_mode" not in st.session_state:
+        # Default to LLM only when a key is already configured; else mock.
+        st.session_state.ai_mode = (
+            "llm" if engine_status("auto")["mode"] == "llm" else "mock"
+        )
 
 
 def _load_example() -> None:
@@ -102,20 +111,34 @@ def _render_sidebar() -> None:
     st.sidebar.metric("Artifacts per Project", len(ARTIFACT_LABELS))
 
     st.sidebar.divider()
-    status = engine_status()
+
+    # --- AI Mode selector -------------------------------------------------
+    st.sidebar.subheader("AI Mode")
+    selected_label = st.sidebar.segmented_control(
+        "AI Mode",
+        options=list(MODE_LABELS.keys()),
+        default=LABEL_BY_MODE[st.session_state.ai_mode],
+        label_visibility="collapsed",
+    )
+    if selected_label is not None:
+        st.session_state.ai_mode = MODE_LABELS[selected_label]
+
+    status = engine_status(st.session_state.ai_mode)
     if status["mode"] == "llm":
-        engine_line = f"**Engine:** 🤖 LLM mode — {status['provider']}"
+        line = f"🤖 **LLM Mode** — {status['provider']}"
         if status.get("model"):
-            engine_line += f" (`{status['model']}`)"
+            line += f" (`{status['model']}`)"
+        st.sidebar.success(line)
     elif status["mode"] == "error":
-        engine_line = "**Engine:** ⚠️ LLM misconfigured — using mock. " + str(
-            status.get("error", "")
+        st.sidebar.warning(
+            "⚠️ LLM Mode needs an API key. Add `LLM_API_KEY` to your `.env` file "
+            "(see `.env.example`), or switch to Mock Mode."
         )
     else:
-        engine_line = "**Engine:** 🧪 Mock mode (no API key)"
+        st.sidebar.info("🧪 **Mock Mode** — runs offline, no API key needed.")
 
+    st.sidebar.divider()
     st.sidebar.markdown(
-        f"{engine_line}\n\n"
         "**How to use**\n"
         "1. Fill in the form (or *Load Example*).\n"
         "2. Click **Generate**.\n"
@@ -185,7 +208,7 @@ def _render_actions() -> None:
         else:
             with st.spinner("Generating your project package…"):
                 try:
-                    engine = get_engine()
+                    engine = get_engine(st.session_state.get("ai_mode", "mock"))
                     st.session_state.outputs = engine.generate_all(st.session_state.inputs)
                 except Exception as exc:  # network/LLM/config errors
                     st.session_state.outputs = {}
