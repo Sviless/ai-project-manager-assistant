@@ -152,30 +152,53 @@ class MockAIEngine:
 
     def _wbs(self, p: dict[str, str]) -> str:
         name = safe_get(p, "project_name", "Project")
-        return (
-            "# Work Breakdown Structure (WBS)\n\n"
-            f"**1. {name}**\n\n"
-            "- **1.1 Initiation**\n"
-            "  - 1.1.1 Develop project charter\n"
-            "  - 1.1.2 Identify stakeholders\n"
-            "  - 1.1.3 Secure sponsor approval\n"
-            "- **1.2 Planning**\n"
-            "  - 1.2.1 Gather requirements\n"
-            "  - 1.2.2 Define scope and success criteria\n"
-            "  - 1.2.3 Build schedule and resource plan\n"
-            "- **1.3 Execution**\n"
-            "  - 1.3.1 Design solution\n"
-            "  - 1.3.2 Build / configure solution\n"
-            "  - 1.3.3 Develop training and documentation\n"
-            "- **1.4 Monitoring & Control**\n"
-            "  - 1.4.1 Track progress and risks\n"
-            "  - 1.4.2 Manage stakeholder communication\n"
-            "  - 1.4.3 Validate quality and acceptance\n"
-            "- **1.5 Closure**\n"
-            "  - 1.5.1 Pilot and go-live\n"
-            "  - 1.5.2 Hand off to operations\n"
-            "  - 1.5.3 Capture lessons learned\n"
-        )
+        objective = safe_get(p, "objective")
+
+        # Turn the user's expected benefits into concrete deliverable work
+        # packages under Execution. Fall back to a generic build when none
+        # are provided so the WBS is always complete.
+        benefits = clean_lines(safe_get(p, "expected_benefits"))
+        if benefits:
+            execution_items = [
+                f"  - 1.3.{i} Deliver: {benefit}"
+                for i, benefit in enumerate(benefits, start=1)
+            ]
+        else:
+            execution_items = [
+                "  - 1.3.1 Design solution",
+                "  - 1.3.2 Build / configure solution",
+                "  - 1.3.3 Develop training and documentation",
+            ]
+
+        header = f"**1. {name}**"
+        if objective:
+            header += f"\n\n*Goal: {objective}*"
+
+        lines = [
+            "# Work Breakdown Structure (WBS)",
+            "",
+            header,
+            "",
+            "- **1.1 Initiation**",
+            "  - 1.1.1 Develop project charter",
+            "  - 1.1.2 Identify stakeholders",
+            "  - 1.1.3 Secure sponsor approval",
+            "- **1.2 Planning**",
+            "  - 1.2.1 Gather requirements",
+            "  - 1.2.2 Define scope and success criteria",
+            "  - 1.2.3 Build schedule and resource plan",
+            "- **1.3 Execution**",
+            *execution_items,
+            "- **1.4 Monitoring & Control**",
+            "  - 1.4.1 Track progress and risks",
+            "  - 1.4.2 Manage stakeholder communication",
+            "  - 1.4.3 Validate quality and acceptance",
+            "- **1.5 Closure**",
+            "  - 1.5.1 Pilot and go-live",
+            "  - 1.5.2 Hand off to operations",
+            "  - 1.5.3 Capture lessons learned",
+        ]
+        return "\n".join(lines) + "\n"
 
     def _raid(self, p: dict[str, str]) -> str:
         # Reuse the shared risk scoring model so RAID and the Risk Register
