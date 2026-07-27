@@ -10,7 +10,7 @@ The UI is organized into three tabs for a clean, professional flow:
 1. 📊 Dashboard : portfolio metrics — project count, open actions, high risks,
                   and project-health distribution (with charts).
 2. 📝 Create   : enter inputs, validate, generate, save, and export.
-3. 📚 History  : browse, view, load, export, and delete saved projects.
+3. 📚 Saved Projects : browse, review, edit, export, and delete saved projects.
 
 The sidebar shows lightweight app info and stats. All persistence lives in
 SQLite (src/db.py) and all generation in the pluggable engine (src/ai_engine.py).
@@ -29,7 +29,13 @@ from src.analytics import (
     dashboard_metrics,
     summarize_project,
 )
-from src.db import delete_project, get_project, list_projects, save_project
+from src.db import (
+    delete_project,
+    get_project,
+    list_projects,
+    save_project,
+    update_project,
+)
 from src.exporters import build_csv, build_markdown, write_outputs_to_disk
 from src.templates import ARTIFACT_LABELS, INPUT_FIELDS, SAMPLE_PROJECT
 from src.utils import slugify, validate_inputs
@@ -48,7 +54,7 @@ SINGLE_LINE_FIELDS = {"project_name", "target_date"}
 INPUT_LABELS = {key: label for key, label, _, _ in INPUT_FIELDS}
 
 # AI Mode selector options: display label -> internal engine mode.
-MODE_LABELS = {"🧪 Mock Mode": "mock", "🤖 LLM Mode": "llm"}
+MODE_LABELS = {"🧪 Standard Mode": "mock", "🤖 LLM Mode": "llm"}
 LABEL_BY_MODE = {mode: label for label, mode in MODE_LABELS.items()}
 
 # ---------------------------------------------------------------------------
@@ -114,6 +120,24 @@ def _render_sidebar() -> None:
 
     # --- AI Mode selector -------------------------------------------------
     st.sidebar.subheader("AI Mode")
+    # Keep the two mode buttons on a single row (no wrapping) at any width.
+    st.sidebar.markdown(
+        """
+        <style>
+        section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] {
+            flex-wrap: nowrap;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] > div {
+            flex: 1 1 0;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stButtonGroup"] button {
+            width: 100%;
+            white-space: nowrap;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
     selected_label = st.sidebar.segmented_control(
         "AI Mode",
         options=list(MODE_LABELS.keys()),
@@ -132,10 +156,10 @@ def _render_sidebar() -> None:
     elif status["mode"] == "error":
         st.sidebar.warning(
             "⚠️ LLM Mode needs an API key. Add `LLM_API_KEY` to your `.env` file "
-            "(see `.env.example`), or switch to Mock Mode."
+            "(see `.env.example`), or switch to Standard Mode."
         )
     else:
-        st.sidebar.info("🧪 **Mock Mode** — runs offline, no API key needed.")
+        st.sidebar.info("🧪 **Standard Mode** — runs offline, no API key needed.")
 
     st.sidebar.divider()
     st.sidebar.markdown(
@@ -143,7 +167,7 @@ def _render_sidebar() -> None:
         "1. Fill in the form (or *Load Example*).\n"
         "2. Click **Generate**.\n"
         "3. **Save** and **Export** your package.\n"
-        "4. Browse the **History** tab anytime."
+        "4. Open **📚 Saved Projects** to review or edit anytime."
     )
 
 
@@ -303,29 +327,43 @@ def _render_health_banner(inputs: dict[str, str]) -> None:
 # History tab: browse / view / load / export / delete saved projects
 # ---------------------------------------------------------------------------
 def _render_history() -> None:
-    st.subheader("📚 Project History")
+    st.subheader("📚 Saved Projects — Review & Edit")
     projects = list_projects(DB_PATH)
 
     if not projects:
         st.info(
-            "No saved projects yet. Create one in the **Create** tab and "
-            "click **Save Project**."
+            "No saved projects yet. Create one in the **📝 Create** tab and "
+            "click **💾 Save Project** — it will then appear here to review and edit."
         )
         return
 
-    # Overview table of all saved projects.
-    table = [
-        {"ID": p["id"], "Project": p["name"], "Saved": p["created_at"].replace("T", " ")}
-        for p in projects
-    ]
-    st.dataframe(table, use_container_width=True, hide_index=True)
+    st.caption(
+        "Pick a project below to review its details, edit the documents, "
+        "and save your changes."
+    )
 
-    st.divider()
-
-    # Pick one project to view in detail.
+    # --- Step 1: choose a project ----------------------------------------
+    st.markdown("#### Step 1 — Choose a project")
     label_to_id = {f"#{p['id']} — {p['name']}": p["id"] for p in projects}
-    choice = st.selectbox("Select a project to view", list(label_to_id.keys()))
+    choice = st.selectbox(
+        "Select a project to review or edit",
+        list(label_to_id.keys()),
+        help="Every project you save shows up in this list.",
+    )
     selected_id = label_to_id[choice]
+
+    # Optional overview of everything saved, tucked away to keep the focus clear.
+    with st.expander(f"📋 See all {len(projects)} saved projects", expanded=False):
+        table = [
+            {
+                "ID": p["id"],
+                "Project": p["name"],
+                "Saved": p["created_at"].replace("T", " "),
+            }
+            for p in projects
+        ]
+        st.dataframe(table, use_container_width=True, hide_index=True)
+
     record = get_project(DB_PATH, selected_id)
     if not record:
         st.error("That project could not be loaded (it may have been deleted).")
@@ -335,14 +373,19 @@ def _render_history() -> None:
     outputs = record["outputs"]
     slug = slugify(name)
 
+    st.divider()
+    st.markdown(f"#### Step 2 — Review **{name}**")
     _render_health_banner(record["inputs"])
 
     # Action row for the selected project.
     a1, a2, a3, a4 = st.columns(4)
-    if a1.button("📂 Load into editor", use_container_width=True):
+    if a1.button("📂 Load into Create tab", use_container_width=True):
         st.session_state.inputs = {**_blank_inputs(), **record["inputs"]}
         st.session_state.outputs = outputs
-        st.success("Loaded into the **Create** tab. Switch tabs to edit or re-generate.")
+        st.success(
+            "Loaded into the **📝 Create** tab. Switch tabs to change the inputs "
+            "or re-generate the whole package."
+        )
 
     a2.download_button(
         "⬇️ Markdown", data=build_markdown(name, outputs),
@@ -357,7 +400,7 @@ def _render_history() -> None:
         st.warning(f"Deleted project #{selected_id}.")
         st.rerun()
 
-    # Show the saved inputs and generated artifacts.
+    # Show the saved inputs.
     with st.expander("📝 Saved inputs", expanded=False):
         for key in INPUT_LABELS:
             value = record["inputs"].get(key, "")
@@ -365,8 +408,61 @@ def _render_history() -> None:
                 st.markdown(f"**{INPUT_LABELS[key]}**")
                 st.write(value)
 
-    st.markdown("#### Generated Artifacts")
-    _render_artifacts(outputs)
+    # --- Step 3: edit the documents --------------------------------------
+    st.divider()
+    st.markdown("#### Step 3 — Edit the documents")
+    edit_mode = st.toggle(
+        "✏️ Edit mode",
+        key=f"edit_mode_{selected_id}",
+        help="Turn on to change any document text, then save your edits.",
+    )
+
+    if edit_mode:
+        _render_editor(selected_id, record)
+    else:
+        st.caption(
+            "Turn on **✏️ Edit mode** above to change the text of any document, "
+            "or read the generated artifacts below."
+        )
+        _render_artifacts(outputs)
+
+
+def _render_editor(selected_id: int, record: dict) -> None:
+    """Render editable fields for a saved project's name and artifacts."""
+    st.info(
+        "Make your changes below, then click **💾 Save changes** at the bottom "
+        "to update this saved project."
+    )
+
+    new_name = st.text_input(
+        "Project name",
+        value=record["name"],
+        key=f"name_{selected_id}",
+    )
+
+    edited_outputs: dict[str, str] = {}
+    for key, content in record["outputs"].items():
+        label = ARTIFACT_LABELS.get(key, key.title())
+        edited_outputs[key] = st.text_area(
+            f"📄 {label}",
+            value=content,
+            key=f"art_{selected_id}_{key}",
+            height=220,
+        )
+
+    if st.button("💾 Save changes", type="primary", key=f"save_{selected_id}"):
+        try:
+            updated = update_project(
+                DB_PATH, selected_id, new_name, record["inputs"], edited_outputs
+            )
+        except Exception as exc:  # surface DB errors instead of crashing
+            st.error(f"Could not save your changes: {exc}")
+            return
+        if updated:
+            st.success("Your changes were saved. ✅")
+            st.rerun()
+        else:
+            st.error("Could not find that project to update (it may have been deleted).")
 
 
 # ---------------------------------------------------------------------------
@@ -457,7 +553,7 @@ def main() -> None:
     _render_sidebar()
 
     tab_dashboard, tab_create, tab_history = st.tabs(
-        ["📊 Dashboard", "📝 Create", "📚 History"]
+        ["📊 Dashboard", "📝 Create", "📚 Saved Projects"]
     )
 
     with tab_dashboard:

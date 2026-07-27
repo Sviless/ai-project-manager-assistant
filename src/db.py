@@ -10,6 +10,7 @@ Public API
 ==========
     init_db(db_path)          -> None    # create tables if needed
     save_project(...)         -> int     # insert; returns new row id
+    update_project(...)       -> bool    # overwrite an existing project
     list_projects(db_path)    -> list    # summary rows for the sidebar
     get_project(db_path, id)  -> dict|None
     delete_project(db_path, id) -> None
@@ -77,6 +78,37 @@ def save_project(
         )
         conn.commit()
         return int(cursor.lastrowid)
+
+
+def update_project(
+    db_path: str,
+    project_id: int,
+    name: str,
+    inputs: dict[str, Any],
+    outputs: dict[str, str],
+) -> bool:
+    """
+    Overwrite an existing project's name, inputs, and outputs in place.
+
+    Returns True if a row was updated, False if the id was not found.
+    """
+    init_db(db_path)
+    with _connect(db_path) as conn:
+        cursor = conn.execute(
+            """
+            UPDATE projects
+            SET name = ?, inputs_json = ?, outputs_json = ?
+            WHERE id = ?
+            """,
+            (
+                name or "Untitled Project",
+                json.dumps(inputs, ensure_ascii=False),
+                json.dumps(outputs, ensure_ascii=False),
+                project_id,
+            ),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
 
 
 def list_projects(db_path: str) -> list[dict[str, Any]]:
