@@ -1,5 +1,9 @@
 # 📋 AI Project Manager Assistant
 
+[![▶ Live Demo](https://img.shields.io/badge/%E2%96%B6_Live_Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://ai-project-manager-assistant.streamlit.app/)
+
+**▶️ Try it live: https://ai-project-manager-assistant.streamlit.app/**
+
 Transform a rough project idea into a **complete, structured project-management package** — instantly, offline, and with no API key required.
 
 Built with **Python + Streamlit**, this local web app takes nine simple inputs and generates **fourteen professional PM artifacts**, scores project risk, computes a **Green/Yellow/Red health indicator**, saves everything to a local **SQLite** database, and surfaces a **portfolio dashboard** with charts. Export any package to **Markdown or CSV**.
