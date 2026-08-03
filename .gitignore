@@ -15,3 +15,6 @@ outputs/*.csv
 .DS_Store
 .vscode/
 .idea/
+
+# Streamlit secrets (keep config.toml tracked, ignore secrets)
+.streamlit/secrets.toml

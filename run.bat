@@ -15,9 +15,17 @@ echo   AI Project Manager Assistant - starting up
 echo ==============================================
 echo.
 
-REM --- 1. Check Python is available ---
-where python >nul 2>nul
-if errorlevel 1 (
+REM --- 1. Find a working Python (prefer the "py" launcher) ---
+set "PYCMD="
+py -3 --version >nul 2>nul
+if not errorlevel 1 (
+    set "PYCMD=py -3"
+) else (
+    python --version >nul 2>nul
+    if not errorlevel 1 set "PYCMD=python"
+)
+
+if not defined PYCMD (
     echo [ERROR] Python was not found on this PC.
     echo.
     echo Please install Python 3.10 or newer from:
@@ -29,17 +37,19 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo Using Python command: %PYCMD%
+
 REM --- 2. Make sure dependencies are installed ---
 echo Checking dependencies (streamlit, pandas)...
-python -c "import streamlit, pandas" >nul 2>nul
+%PYCMD% -c "import streamlit, pandas" >nul 2>nul
 if errorlevel 1 (
     echo Installing required packages, please wait...
-    python -m pip install -r requirements.txt
+    %PYCMD% -m pip install -r requirements.txt
     if errorlevel 1 (
         echo.
         echo [ERROR] Could not install the required packages.
         echo If you are on a corporate network, you may need a proxy, e.g.:
-        echo     python -m pip install -r requirements.txt --proxy http://your-proxy:port
+        echo     %PYCMD% -m pip install -r requirements.txt --proxy http://your-proxy:port
         echo.
         pause
         exit /b 1
@@ -53,6 +63,6 @@ echo.
 echo Starting the app... your browser will open at http://localhost:8501
 echo Keep this window open while using the app. Press Ctrl+C here to stop it.
 echo.
-python -m streamlit run app.py
+%PYCMD% -m streamlit run app.py
 
 pause
