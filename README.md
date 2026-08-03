@@ -1,6 +1,12 @@
 # 📋 AI Project Manager Assistant
 
 [![▶ Live Demo](https://img.shields.io/badge/%E2%96%B6_Live_Demo-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://ai-project-manager-assistant.streamlit.app/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.32%2B-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![SQLite](https://img.shields.io/badge/SQLite-local_persistence-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Last commit](https://img.shields.io/github/last-commit/Sviless/ai-project-manager-assistant?color=1f6feb)](https://github.com/Sviless/ai-project-manager-assistant/commits/main)
+[![Code size](https://img.shields.io/github/languages/code-size/Sviless/ai-project-manager-assistant?color=1f6feb)](https://github.com/Sviless/ai-project-manager-assistant)
 
 **▶️ Try it live: https://ai-project-manager-assistant.streamlit.app/**
 
