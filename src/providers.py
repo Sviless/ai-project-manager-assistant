@@ -16,7 +16,7 @@ you only need the SDK for the provider you actually choose.
 Configuration is read from environment variables (never hard-coded):
 
     LLM_API_KEY               Required to enable LLM mode. Absence => mock mode.
-    LLM_PROVIDER              openai | azure | anthropic   (default: openai)
+    LLM_PROVIDER              openai | azure | anthropic | gemini  (default: openai)
     LLM_MODEL                 Model / deployment name (provider-specific default)
 
     # Azure OpenAI only:
@@ -208,6 +208,37 @@ class AnthropicProvider:
         return "".join(parts).strip()
 
 
+class GeminiProvider:
+    """Google Gemini provider. Requires `pip install google-genai`."""
+
+    name = "Google Gemini"
+
+    def __init__(self, api_key: str, model: str | None = None) -> None:
+        self._api_key = api_key
+        self.model = model or "gemini-2.0-flash"
+
+    def complete(self, system: str, user: str) -> str:
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError as exc:  # pragma: no cover - depends on optional dep
+            raise RuntimeError(
+                "The 'google-genai' package is required for LLM_PROVIDER=gemini. "
+                "Install it with: pip install google-genai"
+            ) from exc
+
+        client = genai.Client(api_key=self._api_key)
+        response = client.models.generate_content(
+            model=self.model,
+            contents=user,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                temperature=0.4,
+            ),
+        )
+        return (response.text or "").strip()
+
+
 # ---------------------------------------------------------------------------
 # Provider registry + factory
 # ---------------------------------------------------------------------------
@@ -219,12 +250,14 @@ _PROVIDERS: dict[str, type] = {
     "azure_openai": AzureOpenAIProvider,
     "anthropic": AnthropicProvider,
     "claude": AnthropicProvider,
+    "gemini": GeminiProvider,
+    "google": GeminiProvider,
 }
 
 
 def available_providers() -> list[str]:
     """Return the canonical provider aliases users can set in LLM_PROVIDER."""
-    return ["openai", "azure", "anthropic"]
+    return ["openai", "azure", "anthropic", "gemini"]
 
 
 def get_provider(api_key: str | None = None) -> LLMProvider | None:
