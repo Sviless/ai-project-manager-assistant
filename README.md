@@ -29,7 +29,7 @@ Built with **Python + Streamlit**, this local web app takes nine simple inputs a
 - **Executive one-page summary** and **RACI matrix** generator for stakeholder alignment.
 - **Lessons-learned** retrospective template.
 - **Two generation modes, one interface** — runs **offline in mock mode** by default, or in **LLM mode** with a real model when you set `LLM_API_KEY` (see [Generation modes](#-generation-modes-mock-vs-llm)).
-- **Pluggable provider interface** — connect **OpenAI, Azure OpenAI, or Anthropic (Claude)** via environment variables; add your own provider in one small file.
+- **Pluggable provider interface** — connect **OpenAI, Azure OpenAI, Anthropic (Claude), or Google Gemini** via environment variables; add your own provider in one small file.
 - **Local persistence** — saved projects stored in SQLite (`data/projects.db`).
 - **One-click export** — download a combined **Markdown** document or a **CSV** file.
 - **Clean, modular structure** — separate modules for AI logic, analytics, database, exports, templates, and helpers.
@@ -72,7 +72,7 @@ ai-project-manager-assistant/
     ├── __init__.py
     ├── ai_engine.py      # Generates the 14 artifacts (mock + LLM engines)
     ├── analytics.py      # Risk scoring, health indicator, dashboard metrics
-    ├── providers.py      # LLM provider interface (OpenAI/Azure/Anthropic)
+    ├── providers.py      # LLM provider interface (OpenAI/Azure/Anthropic/Gemini)
     ├── db.py             # SQLite persistence layer
     ├── exporters.py      # Markdown & CSV builders
     ├── templates.py      # Artifact/field metadata + sample project
@@ -139,7 +139,7 @@ Generating from these inputs produces a full charter, scope statement, milestone
 |---|---|
 | `app.py` | Streamlit UI: Dashboard, Create, and History tabs (form, actions, charts, health banner). |
 | `src/ai_engine.py` | Core generation logic. `MockAIEngine` builds all 14 artifacts from templates; `LLMEngine` builds them via a provider. `get_engine()` picks the mode; `engine_status()` reports it. |
-| `src/providers.py` | Pluggable LLM provider interface + OpenAI / Azure OpenAI / Anthropic implementations and the env-based provider factory. |
+| `src/providers.py` | Pluggable LLM provider interface + OpenAI / Azure OpenAI / Anthropic / Gemini implementations and the env-based provider factory. |
 | `src/analytics.py` | Risk scoring model (probability × impact), Green/Yellow/Red health indicator, and dashboard aggregation. |
 | `src/db.py` | SQLite layer: `init_db`, `save_project`, `list_projects`, `get_project`, `delete_project`. |
 | `src/exporters.py` | Builds combined Markdown and CSV outputs and writes them to `outputs/`. |
@@ -174,9 +174,11 @@ Generation uses deterministic local Python templates and rules (`MockAIEngine`).
 1. **Install the SDK** for your chosen provider (only the one you use):
 
    ```powershell
-   pip install openai       # for OpenAI or Azure OpenAI
+   pip install openai        # for OpenAI or Azure OpenAI
    # or
-   pip install anthropic    # for Anthropic (Claude)
+   pip install anthropic     # for Anthropic (Claude)
+   # or
+   pip install google-genai  # for Google Gemini
    ```
 
 2. **Set environment variables.** The only required one is `LLM_API_KEY`.
@@ -184,7 +186,7 @@ Generation uses deterministic local Python templates and rules (`MockAIEngine`).
    | Variable | Required | Description | Default |
    |---|---|---|---|
    | `LLM_API_KEY` | ✅ | Your provider API key. Its presence enables LLM mode. | — |
-   | `LLM_PROVIDER` | | `openai` \| `azure` \| `anthropic` | `openai` |
+   | `LLM_PROVIDER` | | `openai` \| `azure` \| `anthropic` \| `gemini` | `openai` |
    | `LLM_MODEL` | | Model name (or **Azure deployment name**) | provider default |
    | `AZURE_OPENAI_ENDPOINT` | Azure only | `https://<resource>.openai.azure.com` | — |
    | `AZURE_OPENAI_API_VERSION` | Azure only | API version | `2024-06-01` |
@@ -220,6 +222,13 @@ Generation uses deterministic local Python templates and rules (`MockAIEngine`).
    LLM_API_KEY=your-anthropic-key
    LLM_PROVIDER=anthropic
    LLM_MODEL=claude-3-5-sonnet-latest
+   ```
+
+   **Google Gemini example (`.env`):**
+   ```dotenv
+   LLM_API_KEY=your-gemini-key
+   LLM_PROVIDER=gemini
+   LLM_MODEL=gemini-2.0-flash
    ```
 
 If the key is missing, invalid, or a call fails, the app tells you in the UI; remove the key to fall straight back to mock mode.
